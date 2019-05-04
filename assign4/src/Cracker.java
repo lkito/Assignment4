@@ -1,4 +1,9 @@
+import java.security.*;
+
 public class Cracker {
+	private static final String DIGEST_TYPE = "SHA-256";
+	private MessageDigest md;
+
 	// Array of chars used to produce strings
 	public static final char[] CHARS = "abcdefghijklmnopqrstuvwxyz0123456789.,-!".toCharArray();	
 	
@@ -37,5 +42,36 @@ public class Cracker {
 	// fm adeb6f2a18fe33af368d91b09587b68e3abcb9a7
 	// a! 34800e15707fae815d7c90d49de44aca97e2d759
 	// xyz 66b27417d37e024c46526c2f6d358a754fc552f3
+
+
+	public Cracker(String passWord){
+		try {
+			md = MessageDigest.getInstance(DIGEST_TYPE);
+		} catch (NoSuchAlgorithmException nae) {
+			nae.printStackTrace();
+		}
+		byte[] digestRes = md.digest();
+		System.out.println(hexToString(digestRes));
+	}
+
+	public Cracker(String passHex, int passLength, int numThreads){
+		try {
+			md = MessageDigest.getInstance(DIGEST_TYPE);
+		} catch (NoSuchAlgorithmException nae) {
+			nae.printStackTrace();
+		}
+		int singleThreadChars = CHARS.length;
+
+
+
+	}
+
+	public static void main(String[] args){
+		if(args.length == 1) {
+			Cracker crack = new Cracker(args[0]);
+		} else {
+			Cracker crack = new Cracker(args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]));
+		}
+	}
 
 }

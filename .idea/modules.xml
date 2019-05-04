@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/HW4 Starter Code.iml" filepath="$PROJECT_DIR$/.idea/HW4 Starter Code.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/hw4Threads.iml" filepath="$PROJECT_DIR$/.idea/hw4Threads.iml" />
     </modules>
   </component>
 </project>
