@@ -33,7 +33,6 @@ public class Bank {
                 accMap.get(receiver).changeBalance(amount);
             }
         }
-
     }
 
     private void printResult(){
