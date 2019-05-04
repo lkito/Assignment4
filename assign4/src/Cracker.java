@@ -1,7 +1,9 @@
 import java.security.*;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 public class Cracker {
-	private static final String DIGEST_TYPE = "SHA-256";
+	private static final String DIGEST_TYPE = "SHA";
 	private MessageDigest md;
 
 	// Array of chars used to produce strings
@@ -50,19 +52,88 @@ public class Cracker {
 		} catch (NoSuchAlgorithmException nae) {
 			nae.printStackTrace();
 		}
+		md.update(passWord.getBytes());
 		byte[] digestRes = md.digest();
 		System.out.println(hexToString(digestRes));
 	}
 
 	public Cracker(String passHex, int passLength, int numThreads){
-		try {
-			md = MessageDigest.getInstance(DIGEST_TYPE);
-		} catch (NoSuchAlgorithmException nae) {
-			nae.printStackTrace();
+		CountDownLatch signal = new CountDownLatch(numThreads);
+		int singleThreadChars = CHARS.length / numThreads;
+		Worker[] workers = new Worker[numThreads];
+		for(int i = 0; i < numThreads; i++){
+			int startInd = i * singleThreadChars;
+			int endInd = (i + 1) * singleThreadChars - 1;
+			if(i == numThreads - 1) endInd = CHARS.length - 1;
+			workers[i] = new Worker(passHex, passLength, startInd, endInd, signal);
 		}
-		int singleThreadChars = CHARS.length;
+		for(int i = 0; i < numThreads; i++){
+			workers[i].start();
+		}
+		try {
+			signal.await();
+		} catch (InterruptedException ex) {};
+		for(int i = 0; i < numThreads; i++){
+			String res = workers[i].getResult();
+			if(res != ""){
+				System.out.println(res);
+				break;
+			}
+		}
+	}
 
+	private class Worker extends Thread {
+		private MessageDigest workerMD;
+		private CountDownLatch signal;
+		byte[] passHex;
+		int passLength, startInd, endInd;
+		String result;
 
+		public Worker(String passHex, int passLength, int startInd, int endInd, CountDownLatch signal){
+			this.passHex = hexToArray(passHex);
+			this.passLength = passLength;
+			this.startInd = startInd;
+			this.endInd = endInd;
+			this.result = "";
+			this.signal = signal;
+			try {
+				workerMD = MessageDigest.getInstance(DIGEST_TYPE);
+			} catch (NoSuchAlgorithmException nae) {
+				nae.printStackTrace();
+			}
+		}
+
+		private String recGenerate(String str){
+			if(str.length() <= passLength){
+				workerMD.update(str.getBytes());
+				if(Arrays.equals(passHex, workerMD.digest())){
+					return str;
+				}
+			}
+			if(str.length() == passLength){
+				return "";
+			}
+			for (int i = 0; i < CHARS.length; i++){
+				String res = recGenerate(str + CHARS[i]);
+				if(res != "") return res;
+			}
+			return "";
+		}
+
+		public String getResult() {
+			return result;
+		}
+
+		public void run() {
+			for (int i = startInd; i <= endInd; i++){
+				String res = recGenerate("" + CHARS[i]);
+				if(res != ""){
+					result = res;
+					break;
+				}
+			}
+			signal.countDown();
+		}
 
 	}
 
