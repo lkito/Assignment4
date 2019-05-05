@@ -47,7 +47,6 @@ public class JCount extends JPanel {
                     }
                 }
                 if(curCount == countTo) finishedCounting = true;
-                //if(isInterrupted()) break;
             }
             if(finishedCounting) setLabelText("" + countTo);
         }
