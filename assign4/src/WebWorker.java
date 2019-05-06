@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.Semaphore;
 import javax.swing.*;
 
 public class WebWorker extends Thread {
@@ -11,21 +12,24 @@ public class WebWorker extends Thread {
     private static final String ERROR = "err";
     private static final String INTERRUPTION = "interrupted";
     private static final String SUCCESS = "OK";
+    private Semaphore sem;
 
 
-    public WebWorker(String urlString, int row, WebFrame frame){
+    public WebWorker(String urlString, int row, WebFrame frame, Semaphore sem){
         this.urlString = urlString;
         this.row = row;
         this.frame = frame;
+        this.sem = sem;
     }
 
     private void updateGUI(String error, int downloadSize, long runTime, String date){
-        String result = "";
+        String result;
         if(error != SUCCESS){
             result = error;
         } else {
             result = date + " " + runTime + "ms " + downloadSize + " bytes";
         }
+        frame.updateData(result, row);
 
     }
 
@@ -33,6 +37,7 @@ public class WebWorker extends Thread {
         InputStream input = null;
         StringBuilder contents = null;
         try {
+            long start = System.currentTimeMillis();
             URL url = new URL(urlString);
             URLConnection connection = url.openConnection();
 
@@ -48,8 +53,6 @@ public class WebWorker extends Thread {
             char[] array = new char[1000];
             int len;
             contents = new StringBuilder(1000);
-
-            long start = System.currentTimeMillis();
             while ((len = reader.read(array, 0, array.length)) > 0) {
                 if (isInterrupted()) {
                     updateGUI(INTERRUPTION, 0, 0, null);
@@ -81,10 +84,17 @@ public class WebWorker extends Thread {
                 if (input != null) input.close();
             } catch (IOException ignored) {}
         }
+        sem.release();
+        frame.updateRunningCount(-1);
     }
 
     public void run() {
+        frame.updateRunningCount(1);
         download();
     }
-	
+
+    public static void main(String[] args) {
+        WebWorker worker = new WebWorker("ptth/:/syntaxerror.com/", 1, null, new Semaphore(1));
+        worker.start();
+    }
 }
