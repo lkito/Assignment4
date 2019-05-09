@@ -86,6 +86,7 @@ public class WebWorker extends Thread {
         }
         sem.release();
         frame.updateRunningCount(-1);
+        frame.updateCompletedCount(false);
     }
 
     public void run() {

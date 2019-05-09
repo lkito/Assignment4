@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class WebFrame extends JFrame {
     private JTextField maxWorkersField;
@@ -28,24 +29,30 @@ public class WebFrame extends JFrame {
     private static final String URL_FILE = "links.txt";
 
     private Launcher launch;
-    private int runningCount;
-    private int completedCount;
+    private AtomicInteger runningCount;
+    private AtomicInteger completedCount;
 
     private class Launcher extends Thread {
 
         private Semaphore sem;
+        private Semaphore interruptLock;
 
         public Launcher(int maxWorkers){
-            runningCount = 0;
-            completedCount = 0;
+            runningCount = new AtomicInteger(0);
+            completedCount = new AtomicInteger(0);
             sem = new Semaphore(maxWorkers);
+            interruptLock = new Semaphore(1);
         }
 
         private void interruptWorkers(WebWorker[] workers){
+            try {
+                interruptLock.acquire();
+            } catch (InterruptedException e) { }
             for(int i = 0; i < workers.length; i++){
                 if(workers[i] == null) break;
                 workers[i].interrupt();
             }
+            interruptLock.release();
         }
 
         public void run(){
@@ -53,38 +60,36 @@ public class WebFrame extends JFrame {
             long start = System.currentTimeMillis();
             WebWorker[] workers = new WebWorker[model.getRowCount()];
             for(int i = 0; i < model.getRowCount(); i++){
-                /*if(isInterrupted()){
-                    setButtonsToDefault();
-                    interruptWorkers(workers);
-                    return;
-                }*/
                 try {
                     sem.acquire();
                 } catch (InterruptedException e) {
                     setButtonsToDefault();
                     interruptWorkers(workers);
+                    updateRunningCount(-1);
                     return;
+                }
+                try {
+                    interruptLock.acquire();
+                } catch (InterruptedException e) {
                 }
                 workers[i] = new WebWorker((String)model.getValueAt(i, 0), i, WebFrame.this, sem);
                 workers[i].start();
+                interruptLock.release();
             }
             for(int i = 0; i < model.getRowCount(); i++){
-                /*if(isInterrupted()){
-                    setButtonsToDefault();
-                    interruptWorkers(workers);
-                    return;
-                }*/
                 try {
                     workers[i].join();
                 } catch (InterruptedException e) {
                     setButtonsToDefault();
                     interruptWorkers(workers);
+                    updateRunningCount(-1);
                     return;
                 }
             }
             long end = System.currentTimeMillis();
             updateElapsed(end - start);
             setButtonsToDefault();
+            updateRunningCount(-1);
         }
 
     }
@@ -108,24 +113,23 @@ public class WebFrame extends JFrame {
         final int newUpd = update;
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                if(newUpd == -1) updateCompletedCount(false);
-                runningCount += newUpd;
-                runningLabel.setText(DEFAULT_RUNNING_LABEL + runningCount);
+                runningCount.addAndGet(newUpd);
+                runningLabel.setText(DEFAULT_RUNNING_LABEL + runningCount.get());
             }
         });
     }
 
-    private void updateCompletedCount(boolean flag){
+    public void updateCompletedCount(boolean flag){
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 if(flag){
-                    completedCount = 0;
+                    completedCount.set(0);
                     progress.setValue(0);
                 } else {
-                    completedCount++;
-                    progress.setValue(completedCount);
+                    completedCount.addAndGet(1);
+                    progress.setValue(completedCount.get());
                 }
-                completedLabel.setText(DEFAULT_COMPLETED_LABEL + completedCount);
+                completedLabel.setText(DEFAULT_COMPLETED_LABEL + completedCount.get());
             }
         });
     }
