@@ -74,27 +74,27 @@ public class Cracker {
 			signal.await();
 		} catch (InterruptedException ex) {};
 		for(int i = 0; i < numThreads; i++){
-			String res = workers[i].getResult();
-			if(res != ""){
-				System.out.println(res);
-				break;
-			}
+			List<String> res = workers[i].getResult();
+			for(int k = 0; k < res.size(); k++) {
+                System.out.println(res.get(k));
+            }
 		}
+        System.out.println("All Done!");
 	}
 
 	private class Worker extends Thread {
 		private MessageDigest workerMD;
 		private CountDownLatch signal;
-		byte[] passHex;
-		int passLength, startInd, endInd;
-		String result;
+		private byte[] passHex;
+		private int passLength, startInd, endInd;
+		private List<String> result;
 
 		public Worker(String passHex, int passLength, int startInd, int endInd, CountDownLatch signal){
 			this.passHex = hexToArray(passHex);
 			this.passLength = passLength;
 			this.startInd = startInd;
 			this.endInd = endInd;
-			this.result = "";
+			this.result = new ArrayList<>();
 			this.signal = signal;
 			try {
 				workerMD = MessageDigest.getInstance(DIGEST_TYPE);
@@ -103,34 +103,26 @@ public class Cracker {
 			}
 		}
 
-		private String recGenerate(String str){
-			if(str.length() <= passLength){
-				workerMD.update(str.getBytes());
-				if(Arrays.equals(passHex, workerMD.digest())){
-					return str;
-				}
-			}
+		private void recGenerate(String str){
+            workerMD.update(str.getBytes());
+            if(Arrays.equals(passHex, workerMD.digest())){
+                result.add(str);
+            }
 			if(str.length() == passLength){
-				return "";
+				return;
 			}
 			for (int i = 0; i < CHARS.length; i++){
-				String res = recGenerate(str + CHARS[i]);
-				if(res != "") return res;
+				recGenerate(str + CHARS[i]);
 			}
-			return "";
 		}
 
-		public String getResult() {
+		public List<String> getResult() {
 			return result;
 		}
 
 		public void run() {
 			for (int i = startInd; i <= endInd; i++){
-				String res = recGenerate("" + CHARS[i]);
-				if(res != ""){
-					result = res;
-					break;
-				}
+				recGenerate("" + CHARS[i]);
 			}
 			signal.countDown();
 		}
